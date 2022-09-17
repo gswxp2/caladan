@@ -347,7 +347,7 @@ static const struct cfg_handler cfg_handlers[] = {
 	{ "disable_watchdog", parse_watchdog_flag, false },
 	{ "preferred_socket", parse_preferred_socket, false },
 	{ "enable_storage", parse_enable_storage, false },
-	{ "enable_directpath", parse_enable_directpath, false },
+	//{ "enable_directpath", parse_enable_directpath, false },
 	{ "enable_gc", parse_enable_gc, false },
 
 };

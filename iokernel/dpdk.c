@@ -92,7 +92,7 @@ static inline int dpdk_port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 		return -1;
 
 	/* Get default device configuration */
-	rte_eth_dev_info_get(0, &dev_info);
+	rte_eth_dev_info_get(port, &dev_info);
 	rxconf = &dev_info.default_rxconf;
 	rxconf->rx_free_thresh = 64;
 	dp.is_mlx = !strncmp(dev_info.driver_name, "net_mlx", 7);
@@ -204,7 +204,7 @@ int dpdk_init(void)
 	sprintf(buf, "%d", sched_dp_core);
 	argv[2] = buf;
 	argv[3] = "--socket-mem=128";
-	argv[4] = "--vdev=net_tap0";
+	argv[4] = "--vdev=net_tap0,iface=foo0";
 
 	/* initialize the Environment Abstraction Layer (EAL) */
 	int ret = rte_eal_init(ARRAY_SIZE(argv), argv);
@@ -214,7 +214,7 @@ int dpdk_init(void)
 	}
 
 	/* check that there is a port to send/receive on */
-	if (!rte_eth_dev_is_valid_port(0)) {
+	if (!rte_eth_dev_is_valid_port(1)) {
 		log_err("dpdk: no available ports");
 		return -1;
 	}
@@ -231,7 +231,7 @@ int dpdk_init(void)
 int dpdk_late_init(void)
 {
 	/* initialize port */
-	dp.port = 0;
+	dp.port = 1;
 	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
 		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
 		return -1;

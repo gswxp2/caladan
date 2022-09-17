@@ -268,11 +268,16 @@ void net_rx_arp(struct mbuf *m)
 
 	if (am_target && op == ARP_OP_REQUEST) {
 		log_debug("arp: responding to arp request "
-				  "from IP %d.%d.%d.%d",
+				  "from IP %d.%d.%d.%d"
+				  "to IP %d.%d.%d.%d",
 				  ((sender_ip >> 24) & 0xff),
 				  ((sender_ip >> 16) & 0xff),
 				  ((sender_ip >> 8) & 0xff),
-				  (sender_ip & 0xff));
+				  (sender_ip & 0xff),
+				  ((target_ip >> 24) & 0xff),
+				  ((target_ip >> 16) & 0xff),
+				  ((target_ip >> 8) & 0xff),
+				  (target_ip & 0xff));
 
 		arp_send(ARP_OP_REPLY, sender_mac, sender_ip);
 	}

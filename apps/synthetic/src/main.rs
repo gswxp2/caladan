@@ -1095,7 +1095,7 @@ fn main() {
     assert!(start_packets_per_second <= packets_per_second);
     let config = matches.value_of("config");
     let dowarmup = matches.is_present("warmup");
-
+    
     let tport = value_t_or_exit!(matches, "transport", Transport);
     let proto: Arc<Box<dyn LoadgenProtocol>> = match matches.value_of("protocol").unwrap() {
         "synthetic" => Arc::new(Box::new(SyntheticProtocol::with_args(&matches, tport))),
@@ -1150,6 +1150,7 @@ fn main() {
         });
         return;
     }
+    println!("Hello, world!");
 
     match mode {
         "spawner-server" => match tport {

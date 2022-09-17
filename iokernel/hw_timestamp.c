@@ -41,7 +41,7 @@ int hw_timestamp_init(void)
 		return -1;
 	}
 
-	i = 0;
+	i = 1;
 	while ((ib_dev = dev_list[i])) {
 		// TODO: make this user configurable
 		if (strncmp(ibv_get_device_name(ib_dev), "mlx5", 4) == 0)

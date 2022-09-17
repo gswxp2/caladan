@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 	} else {
 		sched_ops = &simple_ops;
 	}
-
+	cfg.no_hw_qdel = true;
 	for (i = 2; i < argc; i++) {
 		if (!strcmp(argv[i], "noht")) {
 			cfg.noht = true;

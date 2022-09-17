@@ -17,10 +17,8 @@ chmod uga+rwx /dev/ksched
 
 # reserve huge pages
 echo 5192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
-echo 0 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
-for n in /sys/devices/system/node/node[2-9]; do
-	echo 0 > $n/hugepages/hugepages-2048kB/nr_hugepages
-done
+echo 5192 > /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages
+
 
 # load msr module
 modprobe msr

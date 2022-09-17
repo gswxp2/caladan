@@ -671,7 +671,7 @@ int sched_init(void)
 	 */
 
 	for (i = 0; i < cpu_count; i++) {
-		if (cpu_info_tbl[i].package != 0 && sched_ops != &numa_ops)
+		if (cpu_info_tbl[i].package != 1 && sched_ops != &numa_ops)
 			continue;
 
 		if (allowed_cores_supplied &&
