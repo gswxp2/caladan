@@ -265,7 +265,8 @@ full:
 	}
 
 	n_bufs = n_pkts;
-
+	
+	
 	/* finally, send the packets on the wire */
 	ret = rte_eth_tx_burst(dp.port, 0, bufs, n_pkts);
 	log_debug("tx: transmitted %d packets on port %d", ret, dp.port);
@@ -314,8 +315,8 @@ static struct rte_mempool *tx_pktmbuf_completion_pool_create(const char *name,
 		rte_errno = EINVAL;
 		return NULL;
 	}
-	elt_size = sizeof(struct rte_mbuf) + (unsigned)priv_size;
-	mbp_priv.mbuf_data_room_size = 0;
+	elt_size = sizeof(struct rte_mbuf) + (unsigned)priv_size+128;
+	mbp_priv.mbuf_data_room_size = 128;
 	mbp_priv.mbuf_priv_size = priv_size;
 
 	mp = rte_mempool_create_empty(name, n, elt_size, 0,

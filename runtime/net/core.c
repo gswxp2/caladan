@@ -145,7 +145,6 @@ static struct mbuf *net_rx_one(struct mbuf *m)
 
 	STAT(RX_PACKETS)++;
 	STAT(RX_BYTES) += mbuf_length(m);
-
 	/*
 	 * Link Layer Processing (OSI L2)
 	 */
@@ -178,10 +177,13 @@ static struct mbuf *net_rx_one(struct mbuf *m)
 		goto drop;
 
 	/* Did HW checksum verification pass? */
-	if (m->csum_type != CHECKSUM_TYPE_UNNECESSARY) {
-		if (chksum_internet(iphdr, sizeof(*iphdr)))
-			goto drop;
-	}
+	// if (m->csum_type != CHECKSUM_TYPE_UNNECESSARY) {
+	// 	if (chksum_internet(iphdr, sizeof(*iphdr))){
+	// 		printf("IP checksum failed!!!!!!!");
+	// 		goto drop;
+
+	// 	}
+	// }
 
 	if (unlikely(!ip_hdr_supported(iphdr)))
 		goto drop;
@@ -358,8 +360,9 @@ static int net_tx_iokernel(struct mbuf *m)
 static void net_tx_raw(struct mbuf *m)
 {
 	struct kthread *k;
+	//mbuf_push(m,24);
+	//printf("net_tx_raw,mac addr:%x:%x:%x:%x:%x:%x\n",m->data[0],m->data[1],m->data[2],m->data[3],m->data[4],m->data[5]);
 	unsigned int len = mbuf_length(m);
-
 	k = getk();
 	/* drain pending overflow packets first */
 	if (!mbufq_empty(&k->txpktq_overflow))
@@ -455,7 +458,6 @@ int net_tx_ip(struct mbuf *m, uint8_t proto, uint32_t daddr)
 
 	/* prepend the IP header */
 	net_push_iphdr(m, proto, daddr);
-
 	/* ask NIC to calculate IP checksum */
 	m->txflags |= OLFLAG_IP_CHKSUM | OLFLAG_IPV4;
 

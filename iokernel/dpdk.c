@@ -55,18 +55,18 @@
 static const struct rte_eth_conf port_conf_default = {
 	.rxmode = {
 		.max_rx_pkt_len = ETH_MAX_LEN,
-		.offloads = DEV_RX_OFFLOAD_IPV4_CKSUM,
-		.mq_mode = ETH_MQ_RX_RSS | ETH_MQ_RX_RSS_FLAG,
+		// .offloads = DEV_RX_OFFLOAD_IPV4_CKSUM,
+		// .mq_mode = ETH_MQ_RX_RSS | ETH_MQ_RX_RSS_FLAG,
 	},
-	.rx_adv_conf = {
-		.rss_conf = {
-			.rss_key = NULL,
-			.rss_hf = ETH_RSS_NONFRAG_IPV4_TCP | ETH_RSS_NONFRAG_IPV4_UDP,
-		},
-	},
-	.txmode = {
-		.offloads = DEV_TX_OFFLOAD_IPV4_CKSUM | DEV_TX_OFFLOAD_UDP_CKSUM | DEV_TX_OFFLOAD_TCP_CKSUM,
-	},
+	// .rx_adv_conf = {
+	// 	.rss_conf = {
+	// 		.rss_key = NULL,
+	// 		.rss_hf = ETH_RSS_NONFRAG_IPV4_TCP | ETH_RSS_NONFRAG_IPV4_UDP,
+	// 	},
+	// },
+	// .txmode = {
+	// 	.offloads = DEV_TX_OFFLOAD_IPV4_CKSUM | DEV_TX_OFFLOAD_UDP_CKSUM | DEV_TX_OFFLOAD_TCP_CKSUM,
+	// },
 };
 
 /*
@@ -203,18 +203,30 @@ int dpdk_init(void)
 	/* use our assigned core */
 	sprintf(buf, "%d", sched_dp_core);
 	argv[2] = buf;
-	argv[3] = "--socket-mem=128";
-	argv[4] = "--vdev=net_tap0,iface=foo0";
-
+	argv[3] = "-b 3b:00.0";
+	argv[4] = "-b af:00.0";
+	
 	/* initialize the Environment Abstraction Layer (EAL) */
 	int ret = rte_eal_init(ARRAY_SIZE(argv), argv);
 	if (ret < 0) {
 		log_err("dpdk: error with EAL initialization");
 		return -1;
 	}
+	#define RING_SIZE 256
+	#define NUM_RINGS 2
+	#define SOCKET0 1
 
+	struct rte_ring *ring[NUM_RINGS];
+
+	ring[0] = rte_ring_create("R0", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
+	ring[1] = rte_ring_create("R1", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
+
+	/* create two ethdev's */
+
+	rte_eth_from_rings("net_ring0", &ring[0], 1, &ring[0], 1, SOCKET0);
+	//rte_eth_from_rings("net_ring1", &ring[1], 1, &ring[0], 1, SOCKET0);
 	/* check that there is a port to send/receive on */
-	if (!rte_eth_dev_is_valid_port(1)) {
+	if (!rte_eth_dev_is_valid_port(0)) {
 		log_err("dpdk: no available ports");
 		return -1;
 	}
@@ -231,11 +243,14 @@ int dpdk_init(void)
 int dpdk_late_init(void)
 {
 	/* initialize port */
-	dp.port = 1;
-	if (dpdk_port_init(dp.port, dp.rx_mbuf_pool) != 0) {
+	dp.port = 0;
+	if (dpdk_port_init(0, dp.rx_mbuf_pool) != 0) {
 		log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
 		return -1;
 	}
-
+	// if (dpdk_port_init(1, dp.rx_mbuf_pool) != 0) {
+	// 	log_err("dpdk: cannot init port %"PRIu8 "\n", dp.port);
+	// 	return -1;
+	// }
 	return 0;
 }

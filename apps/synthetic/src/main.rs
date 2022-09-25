@@ -1233,6 +1233,9 @@ fn main() {
                         if !run_memcached_preload(proto, backend, Transport::Tcp, addr, nthreads) {
                             panic!("Could not preload memcached");
                         }
+                        println!("Preload complete");
+                        println!("Preload complete");
+                        println!("Preload complete");
                     },
                     _ => (),
                 };

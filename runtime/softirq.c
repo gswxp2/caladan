@@ -69,6 +69,7 @@ static void softirq_gather_work(struct softirq_work *w, struct kthread *k,
 					      MBUF_DEFAULT_LEN);
 			BUG_ON(w->recv_reqs[recv_cnt] == NULL);
 			recv_cnt++;
+			//printf("softirq: recv_cnt %d\n", recv_cnt);
 			break;
 
 		case RX_NET_COMPLETE:

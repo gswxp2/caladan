@@ -27,7 +27,6 @@ static struct rx_net_hdr *rx_prepend_rx_preamble(struct rte_mbuf *buf)
 {
 	struct rx_net_hdr *net_hdr;
 	uint64_t masked_ol_flags;
-
 	net_hdr = (struct rx_net_hdr *) rte_pktmbuf_prepend(buf,
 			(uint16_t) sizeof(*net_hdr));
 	RTE_ASSERT(net_hdr != NULL);
@@ -82,7 +81,6 @@ bool rx_send_to_runtime(struct proc *p, uint32_t hash, uint64_t cmd,
 static bool rx_send_pkt_to_runtime(struct proc *p, struct rx_net_hdr *hdr)
 {
 	shmptr_t shmptr;
-
 	shmptr = ptr_to_shmptr(&dp.ingress_mbuf_region, hdr, sizeof(*hdr));
 	return rx_send_to_runtime(p, hdr->rss_hash, RX_NET_RECV, shmptr);
 }
@@ -94,7 +92,7 @@ static void rx_one_pkt(struct rte_mbuf *buf)
 	struct rx_net_hdr *net_hdr;
 	int i, ret;
 
-	ptr_mac_hdr = rte_pktmbuf_mtod(buf, struct rte_ether_hdr *);
+	ptr_mac_hdr = rte_pktmbuf_mtod_offset(buf, struct rte_ether_hdr *,0);
 	ptr_dst_addr = &ptr_mac_hdr->d_addr;
 	log_debug("rx: rx packet with MAC %02" PRIx8 " %02" PRIx8 " %02"
 		  PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8,
@@ -106,7 +104,6 @@ static void rx_one_pkt(struct rte_mbuf *buf)
 	if (likely(rte_is_unicast_ether_addr(ptr_dst_addr))) {
 		void *data;
 		struct proc *p;
-
 		/* lookup runtime by MAC in hash table */
 		ret = rte_hash_lookup_data(dp.mac_to_proc,
 				&ptr_dst_addr->addr_bytes[0], &data);
@@ -273,7 +270,8 @@ static struct rte_mempool *rx_pktmbuf_pool_create_in_shm(const char *name,
 	}
 
 	rte_mempool_obj_iter(mp, rte_pktmbuf_init, NULL);
-
+	
+	
 	return mp;
 
 fail_unmap_memory:
