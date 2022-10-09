@@ -99,15 +99,15 @@ static void tcp_dump_pkt(tcpconn_t *c, const struct tcp_hdr *tcphdr,
 /* prints an outgoing TCP packet */
 void tcp_debug_egress_pkt(tcpconn_t *c, struct mbuf *m)
 {
-	tcp_dump_pkt(c, (struct tcp_hdr *)mbuf_data(m),
-		     mbuf_length(m) - sizeof(struct tcp_hdr), true);
+	// tcp_dump_pkt(c, (struct tcp_hdr *)mbuf_data(m),
+	// 	     mbuf_length(m) - sizeof(struct tcp_hdr), true);
 }
 
 /* prints an incoming TCP packet */
 void tcp_debug_ingress_pkt(tcpconn_t *c, struct mbuf *m)
 {
-	tcp_dump_pkt(c, (struct tcp_hdr *)mbuf_transport_offset(m),
-		     mbuf_length(m), false);
+	// tcp_dump_pkt(c, (struct tcp_hdr *)mbuf_transport_offset(m),
+	// 	     mbuf_length(m), false);
 }
 
 static const char *state_names[] = {

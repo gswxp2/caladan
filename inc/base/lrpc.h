@@ -11,6 +11,15 @@
 #include <base/stddef.h>
 #include <base/assert.h>
 #include <base/atomic.h>
+#include <base/lock.h>
+
+#ifdef LRPC_USE_LOCK
+#define lrpc_spin_unlock(c) spin_unlock(c)
+#define lrpc_spin_lock(c) spin_lock((c))
+#else
+#define lrpc_spin_unlock(c) 
+#define lrpc_spin_lock(c) 
+#endif
 
 struct lrpc_msg {
 	uint64_t	cmd;
@@ -31,7 +40,9 @@ struct lrpc_chan_out {
 	uint32_t	send_head;
 	uint32_t	send_tail;
 	uint32_t	size;
-	uint32_t	pad;
+	#ifdef LRPC_USE_LOCK
+	spinlock_t		rpc_lock;
+	#endif
 };
 
 extern bool __lrpc_send(struct lrpc_chan_out *chan, uint64_t cmd,
@@ -49,7 +60,7 @@ static inline bool lrpc_send(struct lrpc_chan_out *chan, uint64_t cmd,
 			     unsigned long payload)
 {
 	struct lrpc_msg *dst;
-
+	lrpc_spin_lock(&chan->rpc_lock);
 	assert(!(cmd & LRPC_DONE_PARITY));
 
 	if (unlikely(chan->send_head - chan->send_tail >= chan->size))
@@ -59,6 +70,7 @@ static inline bool lrpc_send(struct lrpc_chan_out *chan, uint64_t cmd,
 	cmd |= (chan->send_head++ & chan->size) ? 0 : LRPC_DONE_PARITY;
 	dst->payload = payload;
 	store_release(&dst->cmd, cmd);
+	lrpc_spin_unlock(&chan->rpc_lock);
 	return true;
 }
 
@@ -99,7 +111,9 @@ static inline uint32_t lrpc_get_cached_length(struct lrpc_chan_out *chan)
  */
 static inline uint32_t lrpc_poll_send_tail(struct lrpc_chan_out *chan)
 {
+	lrpc_spin_lock(&chan->rpc_lock);
 	chan->send_tail = load_acquire(chan->recv_head_wb);
+	lrpc_spin_unlock(&chan->rpc_lock);
 	return chan->send_tail;
 }
 

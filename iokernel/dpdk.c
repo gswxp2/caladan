@@ -112,12 +112,12 @@ static inline int dpdk_port_init(uint8_t port, struct rte_mempool *mbuf_pool)
 		return retval;
 
 	/* Allocate and set up 1 RX queue per Ethernet port. */
-	for (q = 0; q < rx_rings; q++) {
-		retval = rte_eth_rx_queue_setup(port, q, nb_rxd,
-				rte_eth_dev_socket_id(port), rxconf, mbuf_pool);
-		if (retval < 0)
-			return retval;
-	}
+	// for (q = 0; q < rx_rings; q++) {
+	// 	retval = rte_eth_rx_queue_setup(port, q, nb_rxd,
+	// 			rte_eth_dev_socket_id(port), rxconf, mbuf_pool);
+	// 	if (retval < 0)
+	// 		return retval;
+	// }
 
 	/* Enable TX offloading */
 	txconf = &dev_info.default_txconf;
@@ -194,7 +194,7 @@ void dpdk_print_eth_stats(void)
  */
 int dpdk_init(void)
 {
-	char *argv[5];
+	char *argv[6];
 	char buf[10];
 
 	/* init args */
@@ -205,6 +205,7 @@ int dpdk_init(void)
 	argv[2] = buf;
 	argv[3] = "-b 3b:00.0";
 	argv[4] = "-b af:00.0";
+	argv[5] = "--iova-mode=va";
 	
 	/* initialize the Environment Abstraction Layer (EAL) */
 	int ret = rte_eal_init(ARRAY_SIZE(argv), argv);
@@ -212,7 +213,7 @@ int dpdk_init(void)
 		log_err("dpdk: error with EAL initialization");
 		return -1;
 	}
-	#define RING_SIZE 256
+	#define RING_SIZE 1024
 	#define NUM_RINGS 2
 	#define SOCKET0 1
 
@@ -220,11 +221,11 @@ int dpdk_init(void)
 
 	ring[0] = rte_ring_create("R0", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
 	ring[1] = rte_ring_create("R1", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
-
 	/* create two ethdev's */
-
-	rte_eth_from_rings("net_ring0", &ring[0], 1, &ring[0], 1, SOCKET0);
-	//rte_eth_from_rings("net_ring1", &ring[1], 1, &ring[0], 1, SOCKET0);
+	dp.completion_send_ring=rte_ring_create("memcached_client_completion", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
+	dp.completion_recv_ring=rte_ring_create("client_memcached_completion", RING_SIZE, SOCKET0, RING_F_SP_ENQ|RING_F_SC_DEQ);
+	//rte_eth_from_rings("", &ring[0], 1, &ring[1], 1, SOCKET0);
+	rte_eth_from_rings("0", &ring[0], 1, &ring[1], 1, SOCKET0);
 	/* check that there is a port to send/receive on */
 	if (!rte_eth_dev_is_valid_port(0)) {
 		log_err("dpdk: no available ports");

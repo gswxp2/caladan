@@ -10,9 +10,14 @@
 
 #include "defs.h"
 
+//#define COMPLETE_USE_SPINLOCK 0
+
 struct completion_stack {
 	uint32_t size;
 	uint32_t len;
+	#ifdef COMPLETE_USE_SPINLOCK
+		spinlock_t lock;
+	#endif
 	void *objs[];
 };
 
@@ -21,7 +26,9 @@ static int completion_enqueue(struct rte_mempool *mp, void * const *obj_table,
 {
 	unsigned long i;
 	struct completion_stack *s = mp->pool_data;
-
+	#ifdef COMPLETE_USE_SPINLOCK
+	spin_lock(&s->lock);
+	#endif
 	if (unlikely(s->len + n > s->size))
 		return -ENOBUFS;
 
@@ -34,6 +41,10 @@ static int completion_enqueue(struct rte_mempool *mp, void * const *obj_table,
 		s->objs[s->len + i] = obj_table[i];
 
 	s->len += n;
+	#ifdef COMPLETE_USE_SPINLOCK
+	spin_unlock(&s->lock);
+	#endif
+
 	return 0;
 }
 
@@ -41,14 +52,24 @@ static int completion_dequeue(struct rte_mempool *mp, void  ** obj_table, unsign
 {
 	unsigned long i, j;
 	struct completion_stack *s = mp->pool_data;
-	if (unlikely(n > s->len))
+	#ifdef COMPLETE_USE_SPINLOCK
+	spin_lock(&s->lock);
+	#endif
+	if (unlikely(n > s->len)){
+		#ifdef COMPLETE_USE_SPINLOCK
+		spin_unlock(&s->lock);
+		#endif
 		return -ENOBUFS;
+	}
 
 	s->len -= n;
 #pragma GCC ivdep
 	for (i = 0, j = s->len; i < n; i++, j++)
 		obj_table[i] = s->objs[j];
-
+	
+	#ifdef COMPLETE_USE_SPINLOCK
+	spin_unlock(&s->lock);
+	#endif
 	return 0;
 }
 
@@ -72,6 +93,9 @@ static int completion_alloc(struct rte_mempool *mp)
 	s->len = 0;
 	s->size = n;
 	mp->pool_data = s;
+	#ifdef COMPLETE_USE_SPINLOCK
+	s->lock.locked=0;
+	#endif
 	return 0;
 }
 

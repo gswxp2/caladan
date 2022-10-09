@@ -135,11 +135,16 @@ static void print_usage(void)
 	printf("\tias: a policy aware of CPU interference\n");
 	printf("\tnuma: a policy aware of NUMA architectures\n");
 }
-
+#include <signal.h>
+void func(int sig)
+{
+	rx_dump();
+	tx_dump();
+}
 int main(int argc, char *argv[])
 {
 	int i, ret;
-
+	signal(SIGUSR1, func);
 	if (argc >= 2) {
 		if (!strcmp(argv[1], "simple")) {
 			sched_ops = &simple_ops;

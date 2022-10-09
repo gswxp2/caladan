@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include <errno.h>
-
+#include <stdio.h>
 #include <base/compiler.h>
 #include <base/types.h>
 #include <base/assert.h>

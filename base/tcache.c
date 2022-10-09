@@ -97,15 +97,19 @@ void *__tcache_alloc(struct tcache_perthread *ltc)
 		goto alloc;
 
 	/* CASE 3: allocate a new magazine */
+	// printf("tcache alloc slow slow path %p\n",ltc);
 	ltc->loaded = tcache_alloc_mag(tc);
-	if (unlikely(!ltc->loaded))
+	if (unlikely(!ltc->loaded)){
+		//spin_unlock(&ltc->lock);
 		return NULL;
+	}
 
 alloc:
 	/* reload the magazine and allocate an item */
 	ltc->rounds = ltc->capacity - 1;
 	item = (void *)ltc->loaded;
 	ltc->loaded = ltc->loaded->next_item;
+	//spin_unlock(&ltc->lock);
 	return item;
 }
 
@@ -139,6 +143,7 @@ free:
 	ltc->rounds = 1;
 	ltc->loaded = hdr;
 	hdr->next_item = NULL;
+	//spin_unlock(&ltc->lock);
 }
 
 /**

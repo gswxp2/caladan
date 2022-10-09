@@ -184,8 +184,11 @@ int ioqueues_init(void)
 
 	/* map ingress memory */
 	netcfg.rx_region.base =
-	    mem_map_shm_rdonly(INGRESS_MBUF_SHM_KEY, NULL, INGRESS_MBUF_SHM_SIZE,
-			PGSIZE_2MB);
+	    mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x7fff00000000, INGRESS_MBUF_SHM_SIZE,
+			PGSIZE_2MB,false);
+	// void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE,
+	// 		PGSIZE_2MB,false);
+	
 	if (netcfg.rx_region.base == MAP_FAILED) {
 		log_err("control_setup: failed to map ingress region");
 		log_err("Please make sure IOKernel is running");
@@ -212,9 +215,9 @@ int ioqueues_init(void)
 		ts->rxq.wb = ts->q_ptrs;
 	}
 
-	iok.tx_len = EGRESS_POOL_SIZE(maxks);
-	iok.tx_buf = iok_shm_alloc(iok.tx_len, PGSIZE_2MB, NULL);
-
+	iok.tx_len = INGRESS_MBUF_SHM_SIZE;
+	iok.tx_buf = netcfg.rx_region.base;
+	printf("iok.tx_buf = %p, iok.tx_len = %lu\n", iok.tx_buf, iok.tx_len);
 	return 0;
 }
 

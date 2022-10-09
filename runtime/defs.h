@@ -538,7 +538,7 @@ extern int arp_static_count;
 extern struct cfg_arp_static_entry static_entries[MAX_ARP_STATIC_ENTRIES];
 
 extern void __net_recurrent(void);
-extern void net_rx_softirq(struct rx_net_hdr **hdrs, unsigned int nr);
+extern void net_rx_softirq(struct tx_net_hdr **hdrs, unsigned int nr);
 extern void net_rx_softirq_direct(struct mbuf **ms, unsigned int nr);
 
 struct trans_entry;

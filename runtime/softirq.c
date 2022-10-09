@@ -14,7 +14,7 @@ struct softirq_work {
 		direct_rx_cnt;
 	struct kthread *k;
 	struct mbuf *direct_reqs[SOFTIRQ_MAX_BUDGET];
-	struct rx_net_hdr *recv_reqs[SOFTIRQ_MAX_BUDGET];
+	struct tx_net_hdr *recv_reqs[SOFTIRQ_MAX_BUDGET];
 	struct mbuf *compl_reqs[SOFTIRQ_MAX_BUDGET];
 	struct thread *storage_threads[SOFTIRQ_MAX_BUDGET];
 };
@@ -25,8 +25,25 @@ static void softirq_fn(void *arg)
 	int i;
 
 	/* complete TX requests and free packets */
-	for (i = 0; i < w->compl_cnt; i++)
+	// if( w->compl_cnt)
+	// printf("one sofirq run %d\n",w->k->tid);
+	// //check duplicate
+	// for( i = 0; i < w->compl_cnt; i++)
+	// {
+	// 	for (int j = i+1; j < w->compl_cnt; j++)
+	// 	{
+	// 		if(w->compl_reqs[i] == w->compl_reqs[j])
+	// 		{
+	// 			printf("duplicate %p %p\n",w->compl_reqs[i],w->compl_reqs[j]);
+	// 			*(void*)0;
+	// 			exit(1);
+	// 		}
+	// 	}
+		
+	// }
+	for (i = 0; i < w->compl_cnt; i++){
 		mbuf_free(w->compl_reqs[i]);
+	}
 
 #ifdef DIRECT_STORAGE
 	for (i = 0; i < w->storage_cnt; i++)

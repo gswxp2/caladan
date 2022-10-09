@@ -6,12 +6,14 @@
 
 #include <base/log.h>
 #include <base/mempool.h>
+#include <base/shared_tcache.h>
 #include <base/slab.h>
 #include <base/hash.h>
 #include <base/thread.h>
 #include <asm/chksum.h>
 #include <runtime/net.h>
 #include <runtime/smalloc.h>
+#include <numa.h>
 
 #include "defs.h"
 
@@ -23,9 +25,8 @@ struct net_cfg netcfg __aligned(CACHE_LINE_SIZE);
 struct net_driver_ops net_ops;
 
 /* TX buffer allocation */
-struct mempool net_tx_buf_mp;
-static struct tcache *net_tx_buf_tcache;
-static DEFINE_PERTHREAD(struct tcache_perthread, net_tx_buf_pt);
+static struct shared_tcache *net_tx_buf_tcache;
+static DEFINE_PERTHREAD(struct shared_tcache_perthread, net_tx_buf_pt);
 
 #define MBUF_RESERVED (align_up(sizeof(struct mbuf), CACHE_LINE_SIZE))
 
@@ -77,7 +78,7 @@ static void net_rx_send_completion(unsigned long completion_data)
 	putk();
 }
 
-static struct mbuf *net_rx_alloc_mbuf(struct rx_net_hdr *hdr)
+static struct mbuf *net_rx_alloc_mbuf(struct tx_net_hdr *hdr)
 {
 	struct mbuf *m;
 	void *buf;
@@ -94,14 +95,14 @@ static struct mbuf *net_rx_alloc_mbuf(struct rx_net_hdr *hdr)
 
 	mbuf_init(m, buf, MBUF_DEFAULT_LEN - MBUF_RESERVED, 0);
 	m->len = hdr->len;
-	m->csum_type = hdr->csum_type;
-	m->csum = hdr->csum;
-	m->rss_hash = hdr->rss_hash;
+	m->csum_type = 0;
+	m->csum = 0;
+	m->rss_hash = 0;
 
 	m->release = (void (*)(struct mbuf *))sfree;
 
 out:
-	net_rx_send_completion(hdr->completion_data);
+	net_rx_send_completion((unsigned long)hdr);
 	return m;
 }
 
@@ -242,7 +243,7 @@ void net_rx_softirq_direct(struct mbuf **ms, unsigned int nr)
  * @hdrs: an array of ingress packet headers
  * @nr: the size of the @hdrs array
  */
-void net_rx_softirq(struct rx_net_hdr **hdrs, unsigned int nr)
+void net_rx_softirq(struct tx_net_hdr **hdrs, unsigned int nr)
 {
 	struct mbuf *m;
 	struct mbuf *l4_reqs[SOFTIRQ_MAX_BUDGET];
@@ -281,7 +282,7 @@ void net_rx_softirq(struct rx_net_hdr **hdrs, unsigned int nr)
 void net_tx_release_mbuf(struct mbuf *m)
 {
 	preempt_disable();
-	tcache_free(&perthread_get(net_tx_buf_pt), m);
+	shared_tcache_free(&perthread_get(net_tx_buf_pt), m);
 	preempt_enable();
 }
 
@@ -296,7 +297,7 @@ struct mbuf *net_tx_alloc_mbuf(void)
 	unsigned char *buf;
 
 	preempt_disable();
-	m = tcache_alloc(&perthread_get(net_tx_buf_pt));
+	m = shared_tcache_alloc(&perthread_get(net_tx_buf_pt));
 	if (unlikely(!m)) {
 		preempt_enable();
 		log_warn_ratelimited("net: out of tx buffers");
@@ -347,9 +348,9 @@ static int net_tx_iokernel(struct mbuf *m)
 	hdr->completion_data = (unsigned long)m;
 	hdr->len = len;
 	hdr->olflags = m->txflags;
-	shmptr_t shm = ptr_to_shmptr(&netcfg.tx_region, hdr, len + sizeof(*hdr));
+	shmptr_t shm = ptr_to_shmptr(&netcfg.rx_region, hdr, len + sizeof(*hdr));
 
-	if (unlikely(!lrpc_send(&k->txpktq, TXPKT_NET_XMIT, shm))) {
+	if (unlikely(!lrpc_send(&k->txpktq, TXPKT_NET_XMIT, (unsigned long )shm))) {
 		mbuf_pull_hdr(m, *hdr);
 		return -1;
 	}
@@ -574,7 +575,7 @@ int str_to_netaddr(const char *str, struct netaddr *addr)
  */
 int net_init_thread(void)
 {
-	tcache_init_perthread(net_tx_buf_tcache, &perthread_get(net_tx_buf_pt));
+	shared_tcache_init_perthread(net_tx_buf_tcache, &perthread_get(net_tx_buf_pt));
 	return 0;
 }
 
@@ -628,15 +629,16 @@ static struct net_driver_ops iokernel_ops = {
  */
 int net_init(void)
 {
-	int ret;
 
-	ret = mempool_create(&net_tx_buf_mp, iok.tx_buf, iok.tx_len,
-			     PGSIZE_2MB, MBUF_DEFAULT_LEN);
-	if (ret)
-		return ret;
-
-	net_tx_buf_tcache = mempool_create_tcache(&net_tx_buf_mp,
-		"runtime_tx_bufs", TCACHE_DEFAULT_MAG_SIZE);
+	// ret = mempool_create(&net_tx_buf_mp, iok.tx_buf, iok.tx_len,
+	// 		     PGSIZE_2MB, MBUF_DEFAULT_LEN);
+	// if (ret)
+	// 	return ret;
+	// numa_tonode_memory((void*) 0x7fff00000000, INGRESS_MBUF_SHM_SIZE, 0);
+	// numa_tonode_memory((void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE, 0);
+	net_tx_buf_tcache = shared_tcache_create(
+		"runtime_tx_bufs", TCACHE_DEFAULT_MAG_SIZE,MBUF_DEFAULT_LEN,iok.tx_buf, iok.tx_len,
+	 		     PGSIZE_2MB, MBUF_DEFAULT_LEN);
 	if (!net_tx_buf_tcache)
 		return -ENOMEM;
 

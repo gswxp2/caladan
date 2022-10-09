@@ -16,6 +16,7 @@
 #define SPDK_NUM_PAGES_MAPPED 100
 
 #define INGRESS_MBUF_SHM_KEY 0x696d736b /* "imsk" */
+#define INGRESS_MBUF_SHM_KEY_CLIENT 0x696d736c /* "imsk" */
 #define INGRESS_MBUF_SHM_SIZE 0x20000000
 
 /*

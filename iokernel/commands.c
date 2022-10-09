@@ -3,7 +3,7 @@
  */
 
 #include <rte_mbuf.h>
-
+#include <rte_ring.h>
 #include <base/log.h>
 #include <base/lrpc.h>
 #include <iokernel/queue.h>
@@ -41,7 +41,7 @@ static int commands_drain_queue(struct thread *t, struct rte_mbuf **bufs, int n)
  */
 bool commands_rx(void)
 {
-	struct rte_mbuf *bufs[IOKERNEL_CMD_BURST_SIZE];
+	struct tx_net_hdr *bufs[IOKERNEL_CMD_BURST_SIZE];
 	int i, n_bufs = 0;
 	static unsigned int pos = 0;
 
@@ -52,16 +52,26 @@ bool commands_rx(void)
 	for (i = 0; i < nrts; i++) {
 		unsigned int idx = (pos + i) % nrts;
 
-		if (n_bufs >= IOKERNEL_CMD_BURST_SIZE)
+		if (n_bufs >= IOKERNEL_CMD_BURST_SIZE){
+			printf("commands_rx: n_bufs >= IOKERNEL_CMD_BURST_SIZE");
 			break;
+		}	
 		n_bufs += commands_drain_queue(ts[idx], &bufs[n_bufs],
-				IOKERNEL_CMD_BURST_SIZE - n_bufs);
+									   IOKERNEL_CMD_BURST_SIZE - n_bufs);
 	}
 
 	STAT_INC(COMMANDS_PULLED, n_bufs);
 
 	pos++;
+	int r=rte_ring_enqueue_burst(dp.completion_send_ring, (void **)bufs, n_bufs, NULL);
+	if (r!=n_bufs) {
+		printf("rte_ring_enqueue_burst failed, r=%d, n_bufs=%d", r, n_bufs);
+	}
+	n_bufs=rte_ring_dequeue_burst(dp.completion_recv_ring, (void **)bufs, IOKERNEL_CMD_BURST_SIZE,NULL);
+	
 	for (i = 0; i < n_bufs; i++)
-		rte_pktmbuf_free(bufs[i]);
+	{
+		tx_send_completion(bufs[i]);
+	}
 	return n_bufs > 0;
 }

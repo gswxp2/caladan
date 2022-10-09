@@ -42,9 +42,9 @@ extern struct iokernel_cfg cfg;
 #define IOKERNEL_NUM_MBUFS		(8192 * 16)
 #define IOKERNEL_NUM_COMPLETIONS	32767
 #define IOKERNEL_OVERFLOW_BATCH_DRAIN	64
-#define IOKERNEL_TX_BURST_SIZE		64
-#define IOKERNEL_CMD_BURST_SIZE		64
-#define IOKERNEL_RX_BURST_SIZE		64
+#define IOKERNEL_TX_BURST_SIZE		256
+#define IOKERNEL_CMD_BURST_SIZE		512
+#define IOKERNEL_RX_BURST_SIZE		1024
 #define IOKERNEL_CONTROL_BURST_SIZE	4
 #define IOKERNEL_POLL_INTERVAL		10
 
@@ -251,6 +251,8 @@ struct dataplane {
 	uint8_t			port;
 	bool			is_mlx;
 	struct rte_mempool	*rx_mbuf_pool;
+	struct rte_ring		*completion_send_ring;
+	struct rte_ring		*completion_recv_ring;
 
 	struct shm_region		ingress_mbuf_region;
 
@@ -345,7 +347,9 @@ extern DEFINE_BITMAP(input_allowed_cores, NCPU);
  * dataplane RX/TX functions
  */
 extern bool rx_burst(void);
+extern void rx_dump(void);
 extern bool tx_burst(void);
+extern void tx_dump(void);
 extern bool tx_send_completion(void *obj);
 extern bool tx_drain_completions(void);
 

@@ -46,6 +46,7 @@ static inline void
 ref_put(struct ref *ref, void (*release)(struct ref *ref))
 {
 	assert(release);
+
 	if (--ref->cnt == 0)
 		release(ref);
 }

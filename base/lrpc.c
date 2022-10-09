@@ -11,18 +11,21 @@ bool __lrpc_send(struct lrpc_chan_out *chan, uint64_t cmd,
 		 unsigned long payload)
 {
 	struct lrpc_msg *dst;
-
 	assert(chan->send_head - chan->send_tail == chan->size);
 
 	chan->send_tail = load_acquire(chan->recv_head_wb);
-        if (chan->send_head - chan->send_tail == chan->size)
+        if (chan->send_head - chan->send_tail == chan->size){
+				lrpc_spin_unlock(&chan->rpc_lock);
                 return false;
+		}
+
 
 	dst = &chan->tbl[chan->send_head & (chan->size - 1)];
 	dst->payload = payload;
 
 	cmd |= (chan->send_head++ & chan->size) ? 0 : LRPC_DONE_PARITY;
 	store_release(&dst->cmd, cmd);
+	lrpc_spin_unlock(&chan->rpc_lock);
 	return true;
 }
 
@@ -45,6 +48,9 @@ int lrpc_init_out(struct lrpc_chan_out *chan, struct lrpc_msg *tbl,
 	chan->tbl = tbl;
 	chan->size = size;
 	chan->recv_head_wb = recv_head_wb;
+	#ifdef CONFIG_LRPC_SPINLOCK
+	chan->rpc_lock.locked=0;
+	#endif
 	return 0;
 }
 
