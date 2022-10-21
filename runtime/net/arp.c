@@ -18,8 +18,8 @@
 #define ARP_SEED		0xD4812A53
 #define ARP_TABLE_CAPACITY	1024
 #define ARP_RETRIES		3
-#define ARP_RETRY_TIME		ONE_SECOND
-#define ARP_REPROBE_TIME	(10 * ONE_SECOND)
+#define ARP_RETRY_TIME		60*ONE_SECOND
+#define ARP_REPROBE_TIME	(1000 * ONE_SECOND)
 
 enum {
 	/* the MAC address is being probed */
@@ -112,6 +112,8 @@ static struct arp_entry *create_entry(uint32_t daddr)
 
 static void arp_send(uint16_t op, struct eth_addr dhost, uint32_t daddr)
 {
+	printf("should not happened");
+	return 0;
 	struct mbuf *m;
 	struct arp_hdr *arp_hdr;
 	struct arp_hdr_ethip *arp_hdr_ethip;
@@ -171,6 +173,7 @@ static void arp_age_entry(uint64_t now_us, struct arp_entry *e)
 
 static void arp_worker(void *arg)
 {
+	return 0;
 	struct arp_entry *e;
 	struct rcu_hlist_node *node;
 	uint64_t now_us;

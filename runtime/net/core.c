@@ -14,6 +14,7 @@
 #include <runtime/net.h>
 #include <runtime/smalloc.h>
 #include <numa.h>
+#include <netinet/in.h>
 
 #include "defs.h"
 
@@ -30,7 +31,14 @@ static DEFINE_PERTHREAD(struct shared_tcache_perthread, net_tx_buf_pt);
 
 #define MBUF_RESERVED (align_up(sizeof(struct mbuf), CACHE_LINE_SIZE))
 
-
+static unsigned long times[1000000];
+static unsigned long types[1000000];
+static atomic_t times_idx;
+void push_record_raw(unsigned long type){
+	unsigned long idx = atomic_fetch_and_add(&times_idx,1);
+	times[idx] = rdtsc();
+	types[idx] = type;
+}
 /*
  * RX Networking Functions
  */
@@ -348,9 +356,14 @@ static int net_tx_iokernel(struct mbuf *m)
 	hdr->completion_data = (unsigned long)m;
 	hdr->len = len;
 	hdr->olflags = m->txflags;
-	shmptr_t shm = ptr_to_shmptr(&netcfg.rx_region, hdr, len + sizeof(*hdr));
+#ifdef LINK_STATS
+	if(unlikely(htons(*(uint16_t*)(hdr->payload+36))==601)){
+		push_record_raw(4);
+	}
+#endif
+	//shmptr_t shm = ptr_to_shmptr(&netcfg.rx_region, hdr, len + sizeof(*hdr));
 
-	if (unlikely(!lrpc_send(&k->txpktq, TXPKT_NET_XMIT, (unsigned long )shm))) {
+	if (unlikely(!lrpc_send(&k->txpktq, TXPKT_NET_XMIT, (unsigned long )hdr))) {
 		mbuf_pull_hdr(m, *hdr);
 		return -1;
 	}
@@ -621,7 +634,31 @@ static struct net_driver_ops iokernel_ops = {
 	.deregister_flow = deregister_flow_iokernel,
 	.get_flow_affinity = compute_flow_affinity,
 };
-
+#include <signal.h>
+void tcp_dump(int signo){
+	printf("tcp_dump\n");
+	for(int i=0;i<atomic_read(&times_idx);i++){
+		switch (types[i])
+		{
+			case 0:
+				printf("time=%lu, type=%s\n",times[i],"before read");
+				break;
+			case 1:
+				printf("time=%lu, type=%s\n",times[i],"after read");
+				break;
+			case 2:
+				printf("time=%lu, type=%s\n",times[i],"before write");
+				break;
+			case 3:
+				printf("time=%lu, type=%s\n",times[i],"after write");
+				break;
+			case 4:
+				printf("time=%lu, type=%s\n",times[i],"before lrpc");
+				break;
+		}
+		
+	}
+}
 /**
  * net_init - initializes the network stack
  *
@@ -629,6 +666,7 @@ static struct net_driver_ops iokernel_ops = {
  */
 int net_init(void)
 {
+	signal(SIGUSR2, tcp_dump);
 
 	// ret = mempool_create(&net_tx_buf_mp, iok.tx_buf, iok.tx_len,
 	// 		     PGSIZE_2MB, MBUF_DEFAULT_LEN);

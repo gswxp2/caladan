@@ -329,7 +329,7 @@ sched_measure_kthread_delay(struct thread *th,
 	th->last_rq_tail = cur_tail;
 
 	/* UTHREAD: update old standing queue signal */
-	if (th->active ? wraps_lt(cur_tail, last_head) :
+	if (
 			 cur_head != cur_tail) {
 		busy = true;
 	}
@@ -351,7 +351,7 @@ sched_measure_kthread_delay(struct thread *th,
 	th->last_rxq_tail = cur_tail;
 
 	/* RXQ: update old standing queue signal */
-	if (th->active ? wraps_lt(cur_tail, last_head) :
+	if (
 			 cur_head != cur_tail) {
 		busy = true;
 	}
@@ -411,15 +411,21 @@ static void sched_measure_delay(struct proc *p)
 	int i;
 	bool busy = false;
 	bool parked_thread_busy = false;
-
+	static hit_count=0;
 	/* detect per-kthread delay */
 	for (i = 0; i < p->thread_count; i++) {
-		uint64_t delay, rxq_tsc, uthread_tsc, storage_tsc, timer_tsc;
+		uint64_t delay=0, rxq_tsc=0, uthread_tsc=0, storage_tsc=0, timer_tsc=0;
 
 		busy |= sched_measure_kthread_delay(&p->threads[i],
 			&rxq_tsc, &uthread_tsc, &storage_tsc, &timer_tsc);
 		delay = rxq_tsc + uthread_tsc + storage_tsc + timer_tsc;
 		hdelay = MAX(delay, hdelay);
+		// if(hdelay > 5*2200&&delay==hdelay){
+		// 	hit_count++;
+		// 	if(hit_count % 1000==0){
+		// 		printf(">5 count,rxq_tsc=%lu, uthread_tsc=%lu, storage_tsc=%lu, timer_tsc=%lu\n", rxq_tsc, uthread_tsc, storage_tsc, timer_tsc);
+		// 	}
+		// }
 		parked_thread_busy |= delay > 0 && !p->threads[i].active;
 	}
 

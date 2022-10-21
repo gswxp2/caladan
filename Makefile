@@ -7,7 +7,7 @@ CHECKFLAGS = -D__CHECKER__ -Waddress-space
 ifneq ($(TCP_RX_STATS),)
 CFLAGS += -DTCP_RX_STATS
 endif
-
+CFLAGS += -DVDEV_SERVER
 # libbase.a - the base library
 base_src = $(wildcard base/*.c)
 base_obj = $(base_src:.c=.o)
@@ -39,7 +39,7 @@ PCM_DEPS = $(ROOT_PATH)/deps/pcm/libPCM.a
 PCM_LIBS = -lm -lstdc++
 
 # dpdk libs
-DPDK_LIBS =-I/home/gsw/caladan-all/caladan/dpdk/build/include -include /home/gsw/caladan-all/caladan/dpdk/build/include/rte_config.h -D_GNU_SOURCE -O3 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wold-style-definition -Wpointer-arith -Wcast-align -Wnested-externs -Wcast-qual -Wformat-nonliteral -Wformat-security -Wundef -Wwrite-strings -Wdeprecated -Werror -Wimplicit-fallthrough=2 -Wno-format-truncation -Wno-address-of-packed-member -L/home/gsw/caladan-all/caladan/dpdk/build/lib 
+DPDK_LIBS =-I~/caladan-all-vdev/caladan/dpdk/build/include -include ~/caladan-all-vdev/caladan/dpdk/build/include/rte_config.h -D_GNU_SOURCE -O3 -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wold-style-definition -Wpointer-arith -Wcast-align -Wnested-externs -Wcast-qual -Wformat-nonliteral -Wformat-security -Wundef -Wwrite-strings -Wdeprecated -Werror -Wimplicit-fallthrough=2 -Wno-format-truncation -Wno-address-of-packed-member -L~/caladan-all-vdev/caladan/dpdk/build/lib 
 DPDK_LIBS +=-Wl,-lpthread 
 DPDK_LIBS +=-Wl,-lrte_flow_classify 
 DPDK_LIBS +=-Wl,--whole-archive 
@@ -188,7 +188,7 @@ DPDK_LIBS +=-Wl,-lm
 DPDK_LIBS +=-Wl,-lnuma 
 DPDK_LIBS +=-Wl,-ldl 
 DPDK_LIBS +=-Wl,-export-dynamic 
-DPDK_LIBS +=-Wl,-export-dynamic -L/home/gsw/caladan-all/caladan/dpdk/examples/helloworld/build/lib -L/home/gsw/caladan-all/caladan/dpdk/build/lib 
+DPDK_LIBS +=-Wl,-export-dynamic -L~/caladan-all-vdev/caladan/dpdk/examples/helloworld/build/lib -L~caladan-all-vdev/caladan/dpdk/build/lib 
 DPDK_LIBS +=-Wl,--as-needed  
 
 # DPDK_LIBS= -L$(DPDK_PATH)/build/lib

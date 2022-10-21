@@ -67,11 +67,18 @@ bool commands_rx(void)
 	if (r!=n_bufs) {
 		printf("rte_ring_enqueue_burst failed, r=%d, n_bufs=%d", r, n_bufs);
 	}
-	n_bufs=rte_ring_dequeue_burst(dp.completion_recv_ring, (void **)bufs, IOKERNEL_CMD_BURST_SIZE,NULL);
 	
-	for (i = 0; i < n_bufs; i++)
+	return n_bufs > 0;
+}
+
+bool send_complete(void){
+	struct tx_net_hdr *bufs[IOKERNEL_CMD_BURST_SIZE];
+	int n_bufs=rte_ring_dequeue_burst(dp.completion_recv_ring, (void **)bufs, IOKERNEL_CMD_BURST_SIZE,NULL);
+	
+	for (int i = 0; i < n_bufs; i++)
 	{
 		tx_send_completion(bufs[i]);
 	}
-	return n_bufs > 0;
+
+	return n_bufs > 0; 
 }

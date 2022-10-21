@@ -358,4 +358,5 @@ extern bool tx_drain_completions(void);
  */
 extern void dp_clients_rx_control_lrpcs(void);
 extern bool commands_rx(void);
+extern bool send_complete(void);
 extern void dpdk_print_eth_stats(void);

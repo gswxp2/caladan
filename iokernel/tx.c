@@ -195,10 +195,10 @@ static int tx_drain_queue(struct thread *t, int n,
 
 		/* TODO: need to kill the process? */
 		BUG_ON(cmd != TXPKT_NET_XMIT);
-		hdrs[i] = shmptr_to_ptr(&dp.ingress_mbuf_region, payload,
-					sizeof(struct tx_net_hdr));
+		// hdrs[i] = shmptr_to_ptr(&dp.ingress_mbuf_region, payload,
+		// 			sizeof(struct tx_net_hdr));
 		/* TODO: need to kill the process? */
-		//hdrs[i]=(struct tx_net_hdr*)payload;
+		hdrs[i]=(struct tx_net_hdr*)payload;
 		// printf("poll %p from %p\n",hdrs[i]->completion_data,hdrs[i]);
 		BUG_ON(!hdrs[i]);
 	}
@@ -261,7 +261,7 @@ static void* back_ground_send(void* arg){
 void tx_dump(){
 	for (int i = 0; i < time_count; i++)
 	{
-		printf("tx: %lu\n",times[i]);
+		printf("time=%lu, type=%s\n",times[i],"iokernel_tx");
 	}
 }
 /*
@@ -291,12 +291,14 @@ bool tx_burst(void)
 			proc_get(t->p);
 			hdrs[j]->proc=(unsigned long)t->p;
 			hdrs[j]->thread=(unsigned long)t;
-			// if(unlikely(htons(*(uint16_t*)(hdrs[j]->payload+36))==601)){
-			// 	times[time_count++]=rte_rdtsc();
-			// }
-			// if(unlikely(htons(*(uint16_t*)(hdrs[j]->payload+34))==601)){
-			// 	times[time_count++]=rte_rdtsc();
-			// }
+			#ifdef LINK_STATS
+			if(unlikely(htons(*(uint16_t*)(hdrs[j]->payload+36))==601)){
+				times[time_count++]=rte_rdtsc();
+			}
+			if(unlikely(htons(*(uint16_t*)(hdrs[j]->payload+34))==601)){
+				times[time_count++]=rte_rdtsc();
+			}
+			#endif
 			
 		}
 		n_pkts += ret;

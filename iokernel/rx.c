@@ -80,15 +80,16 @@ void rx_dump()
 {
 	for (int i = 0; i < time_count; i++)
 	{
-		printf("rx: %lu\n", times[i]);
+		printf("time=%lu, type=%s\n", times[i], "iokernel_rx");
 	}
 }
 static bool rx_send_pkt_to_runtime(struct proc *p, struct tx_net_hdr *hdr)
 {
 	shmptr_t shmptr;
 	// printf("the hdr id %p,mem base %p, memlen %ld\n",hdr,dp.ingress_mbuf_region.base,dp.ingress_mbuf_region.len);
-	shmptr = ptr_to_shmptr(&dp.ingress_mbuf_region, hdr, sizeof(*hdr));
+	//shmptr = ptr_to_shmptr(&dp.ingress_mbuf_region, hdr, sizeof(*hdr));
 	// printf("the dest port is %d\n",htons(*(uint16_t*)(hdr->payload+36)));
+#ifdef LINK_STATS
 	if (unlikely(htons(*(uint16_t *)(hdr->payload + 36)) == 601))
 	{
 		times[time_count++] = rte_rdtsc();
@@ -97,7 +98,12 @@ static bool rx_send_pkt_to_runtime(struct proc *p, struct tx_net_hdr *hdr)
 	{
 		times[time_count++] = rte_rdtsc();
 	}
-	return rx_send_to_runtime(p, htons(*(uint16_t *)(hdr->payload + 36)), RX_NET_RECV, shmptr);
+#endif
+#ifdef VDEV_SERVER
+	return rx_send_to_runtime(p, htons(*(uint16_t *)(hdr->payload + 34)), RX_NET_RECV, hdr);
+#else
+	return rx_send_to_runtime(p, htons(*(uint16_t *)(hdr->payload + 36)), RX_NET_RECV, hdr);
+#endif
 }
 
 static void rx_one_pkt(struct tx_net_hdr *buf)

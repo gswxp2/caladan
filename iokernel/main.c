@@ -69,7 +69,18 @@ static int run_init_handlers(const char *phase, const struct init_entry *h,
 
 	return 0;
 }
+static unsigned long times[10];
+unsigned long prev;
 
+static void record(int type){
+		// times[type] += rdtsc()-prev;
+		// prev=rdtsc();
+}
+void mainloop_dump(){
+	for(int i=0;i<7;i++){
+		printf("main loop item%d, time %lu\n",i,times[i]);
+	}
+}
 /*
  * The main dataplane thread.
  */
@@ -92,29 +103,36 @@ void dataplane_loop(void)
 	log_info("main: core %u running dataplane. [Ctrl+C to quit]",
 			rte_lcore_id());
 	fflush(stdout);
-
+	prev=rdtsc();
 	/* run until quit or killed */
 	for (;;) {
 		work_done = false;
-
+		
 		/* handle a burst of ingress packets */
 		work_done |= rx_burst();
-
+		record(0);
 		/* adjust core assignments */
 		sched_poll();
+		record(1);
 
 		/* drain overflow completion queues */
 		work_done |= tx_drain_completions();
+		record(2);
 
 		/* send a burst of egress packets */
 		work_done |= tx_burst();
+		record(3);
 
 		/* process a batch of commands from runtimes */
 		work_done |= commands_rx();
+		record(4);
 
+		work_done |= send_complete();
+		record(5);
 		/* handle control messages */
 		if (!work_done)
 			dp_clients_rx_control_lrpcs();
+		record(6);
 
 		STAT_INC(BATCH_TOTAL, IOKERNEL_RX_BURST_SIZE);
 
@@ -136,15 +154,21 @@ static void print_usage(void)
 	printf("\tnuma: a policy aware of NUMA architectures\n");
 }
 #include <signal.h>
-void func(int sig)
+void dump_record(int sig)
 {
 	rx_dump();
 	tx_dump();
+	//mainloop_dump();
+}
+void reset_record(int sig)
+{
+	memset(times,0,sizeof(times));
 }
 int main(int argc, char *argv[])
 {
 	int i, ret;
-	signal(SIGUSR1, func);
+	signal(SIGUSR1, dump_record);
+	// signal(SIGUSR2, reset_record);
 	if (argc >= 2) {
 		if (!strcmp(argv[1], "simple")) {
 			sched_ops = &simple_ops;

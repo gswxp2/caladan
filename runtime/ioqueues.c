@@ -186,8 +186,8 @@ int ioqueues_init(void)
 	netcfg.rx_region.base =
 	    mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x7fff00000000, INGRESS_MBUF_SHM_SIZE,
 			PGSIZE_2MB,false);
-	// void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE,
-	// 		PGSIZE_2MB,false);
+	void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE,
+			PGSIZE_2MB,false);
 	
 	if (netcfg.rx_region.base == MAP_FAILED) {
 		log_err("control_setup: failed to map ingress region");

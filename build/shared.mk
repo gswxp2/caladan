@@ -9,7 +9,7 @@ include $(ROOT_PATH)/build/config
 
 # shared toolchain definitions
 INC = -I$(ROOT_PATH)/inc
-FLAGS  = -g -Wall -D_GNU_SOURCE $(INC)
+FLAGS  = -g -Wall -D_GNU_SOURCE $(INC) 
 LDFLAGS = -T $(ROOT_PATH)/base/base.ld
 LD      = gcc
 CC      = gcc
@@ -46,6 +46,9 @@ FLAGS += -DMLX5
 else
 ifeq ($(CONFIG_MLX4),y)
 FLAGS += -DMLX4
+endif
+ifeq ($(CONFIG_LINKSTATS),y)
+FLAGS += -DLINK_STATS
 endif
 endif
 ifeq ($(CONFIG_SPDK),y)

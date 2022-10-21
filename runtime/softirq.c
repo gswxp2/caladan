@@ -80,10 +80,11 @@ static void softirq_gather_work(struct softirq_work *w, struct kthread *k,
 
 		switch (cmd) {
 		case RX_NET_RECV:
-			w->recv_reqs[recv_cnt] =
-				shmptr_to_ptr(&netcfg.rx_region,
-					      (shmptr_t)payload,
-					      MBUF_DEFAULT_LEN);
+			// w->recv_reqs[recv_cnt] =
+			// 	shmptr_to_ptr(&netcfg.rx_region,
+			// 		      (shmptr_t)payload,
+			// 		      MBUF_DEFAULT_LEN);
+			w->recv_reqs[recv_cnt] = (struct tx_net_hdr *)payload;
 			BUG_ON(w->recv_reqs[recv_cnt] == NULL);
 			recv_cnt++;
 			//printf("softirq: recv_cnt %d\n", recv_cnt);

@@ -20,7 +20,7 @@ extern struct mempool net_tx_buf_mp;
 
 extern void trans_error(struct mbuf *m, int err);
 extern void net_error(struct mbuf *m, int err);
-
+extern void push_record_raw(unsigned long type);
 
 /*
  * RX Networking Functions

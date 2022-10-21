@@ -223,12 +223,12 @@ struct shared_tcache *shared_tcache_create(const char *name,
 	tc = buf;
 	if (!tc)
 		return NULL;
-
+	spin_lock_init(&tc->tc_lock);
+	spin_lock(&tc->tc_lock);
 	tc->name = name;
 	tc->item_size = item_size;
 	atomic64_write(&tc->mags_allocated, 0);
 	tc->mag_size = mag_size;
-	spin_lock_init(&tc->tc_lock);
 	tc->shared_mags = NULL;
 	tc->allocated = 0;
 	tc->capacity = 0;
@@ -242,6 +242,7 @@ struct shared_tcache *shared_tcache_create(const char *name,
 				(char *)buf +pgsize+pgsize * i + item_len * j;
 		}
 	}
+	spin_unlock(&tc->tc_lock);
 	return tc;
 }
 

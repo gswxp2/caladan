@@ -7,6 +7,7 @@
 #include <base/stddef.h>
 #include <base/hash.h>
 #include <base/log.h>
+#include <base/atomic.h>
 #include <runtime/smalloc.h>
 #include <runtime/thread.h>
 #include <runtime/tcp.h>
@@ -19,8 +20,16 @@ static DEFINE_SPINLOCK(tcp_lock);
 /* a list of all TCP connections */
 static LIST_HEAD(tcp_conns);
 
+
 static void tcp_retransmit(void *arg);
 
+static inline void push_record(tcpconn_t * c, unsigned long type){
+	#ifdef LINK_STATS
+	if(unlikely(c->e.laddr.port==601||c->e.raddr.port==601)){
+		push_record_raw(type);
+	}
+	#endif
+}
 void tcp_timer_update(tcpconn_t *c)
 {
 	uint64_t next_timeout = -1L;
@@ -753,9 +762,10 @@ ssize_t tcp_read(tcpconn_t *c, void *buf, size_t len)
 
 	list_head_init(&q);
 
+	push_record(c,0);
 	/* wait for data to become available */
 	ret = tcp_read_wait(c, len, &q, &m);
-
+	push_record(c,1);
 	/* check if connection was closed */
 	if (ret <= 0)
 		return ret;
@@ -952,7 +962,6 @@ ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
 	ssize_t ret;
 
 	spin_lock_np(&c->lock);
-
 	/* block until there is an actionable event */
 	while (!c->tx_closed &&
 	       (c->pcb.state < TCP_STATE_ESTABLISHED || c->tx_exclusive ||
@@ -971,7 +980,6 @@ ssize_t tcp_write(tcpconn_t *c, const void *buf, size_t len)
 
 	/* actually send the data */
 	ret = tcp_tx_send(c, buf, MIN(len, winlen), true);
-
 	c->ack_delayed = (ret < 0);
 	tcp_timer_update(c);
 	spin_unlock_np(&c->lock);
@@ -993,24 +1001,24 @@ ssize_t tcp_writev(tcpconn_t *c, const struct iovec *iov, int iovcnt)
 	size_t winlen;
 	ssize_t sent = 0, ret;
 	int i;
-
+	push_record(c,2);
 	/* block until the data can be sent */
 	ret = tcp_write_wait(c, &winlen);
 	if (ret)
 		return ret;
-
 	/* actually send the data */
 	for (i = 0; i < iovcnt; i++, iov++) {
 		if (winlen <= 0)
 			break;
 		ret = tcp_tx_send(c, iov->iov_base, MIN(iov->iov_len, winlen),
 				  i == iovcnt - 1 && iov->iov_len <= winlen);
+		
 		if (ret <= 0)
 			break;
 		winlen -= ret;
 		sent += ret;
 	}
-
+	push_record(c,3);
 	/* catch up on any pending work */
 	tcp_write_finish(c);
 
