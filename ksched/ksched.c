@@ -32,7 +32,7 @@
 #include <linux/smp.h>
 #include <linux/uaccess.h>
 #include <linux/signal.h>
-
+#include <linux/proc_fs.h>
 #include "ksched.h"
 #include "../iokernel/pmc.h"
 
@@ -45,6 +45,14 @@
 #endif
 #endif
 
+enum evnt_type {
+	ksched_next_tid_zero=0,
+	ksched_next_tid_nonzero=1,
+	IPI_ENTRY,
+	IPI_DELIVER_SIGNAL,
+	PARK,
+	SCHED_IPI
+};
 #define MSR_APIC_BASE (0x1B)
 #define MSR_X2APIC_ICR (0x830)
 #define X2APIC_ENABLED(apic_status) (apic_status >> 10)
@@ -72,6 +80,9 @@ int ipi_ldrs_num = 0;
 /* the character device that provides the ksched IOCTL interface */
 static struct cdev ksched_cdev;
 
+static cycles_t *start;
+
+static atomic_t count[64][32];
 /* shared memory between the IOKernel and the Linux Kernel */
 static __read_mostly struct ksched_shm_cpu *shm;
 #define SHM_SIZE (NR_CPUS * sizeof(struct ksched_shm_cpu))
@@ -85,7 +96,13 @@ struct ksched_percpu {
 
 /* per-cpu data to coordinate context switching and signal delivery */
 static DEFINE_PER_CPU(struct ksched_percpu, kp);
-
+static inline void push_record(int cpu,int kind,int tid){
+	int slot=atomic_fetch_add(1, &count[cpu][0]);
+	// start[cpu*4000000+(slot<<2)]=rdtsc();
+	// start[cpu*4000000+(slot<<2)+1]=kind;
+	// start[cpu*4000000+(slot<<2)+2]=tid;
+	// start[cpu*4000000+(slot<<2)+3]=shm[cpu].gen;
+}
 /**
  * ksched_measure_pmc - read a performance counter
  * @sel: selects an x86 performance counter
@@ -124,7 +141,7 @@ static void ksched_next_tid(struct ksched_percpu *kp, int cpu, pid_t tid)
 {
 	struct task_struct *p;
 	int ret;
-
+	// push_record(cpu,tid==0?ksched_next_tid_zero:ksched_next_tid_nonzero,current->pid);
 	/* release previous task */
 	if (kp->running_task) {
 		put_task_struct(kp->running_task);
@@ -194,7 +211,6 @@ static int __cpuidle ksched_idle(struct cpuidle_device *dev,
 	unsigned int hint;
 	pid_t tid;
 	int cpu;
-
 	lockdep_assert_irqs_disabled();
 
 	cpu = get_cpu();
@@ -245,6 +261,7 @@ static long ksched_park(void)
 	sigset_t em;
 
 	cpu = get_cpu();
+	// push_record(cpu,PARK,current->pid);
 	p = this_cpu_ptr(&kp);
 	s = &shm[cpu];
 
@@ -264,6 +281,7 @@ static long ksched_park(void)
 	gen = smp_load_acquire(&s->gen);
 	if (gen == p->last_gen) {
 		WRITE_ONCE(s->busy, false);
+		// push_record(cpu,PARK_SLEEP,current->pid);
 		ksched_next_tid(p, cpu, 0);
 		put_cpu();
 		goto park;
@@ -279,6 +297,7 @@ static long ksched_park(void)
 		local_set(&p->busy, true);
 		smp_store_release(&s->last_gen, gen);
 		put_cpu();
+		//push_record(cpu,3,tid);
 		return smp_processor_id();
 	}
 
@@ -291,6 +310,8 @@ static long ksched_park(void)
 park:
 	/* put this task to sleep and reschedule so the next task can run */
 	__set_current_state(TASK_INTERRUPTIBLE);
+	//rdtsc();
+	//printk(KERN_INFO "parking time: cpu %d, time %lld", cpu,rdtsc()-start[cpu]);
 	schedule();
 	__set_current_state(TASK_RUNNING);
 	return smp_processor_id();
@@ -305,11 +326,12 @@ static long ksched_start(void)
 	return smp_processor_id();
 }
 
-static void ksched_deliver_signal(struct ksched_percpu *p, unsigned int signum)
+static void ksched_deliver_signal(struct ksched_percpu *p, unsigned int signum,int cpu)
 {
 	/* if core is already idle, don't bother delivering signals */
 	if (!local_read(&p->busy))
 		return;
+	push_record(cpu,IPI_DELIVER_SIGNAL,current->pid);
 
 	if (p->running_task)
 		send_sig(signum, p->running_task, 0);
@@ -324,11 +346,11 @@ static void ipi_handler(void)
 	cpu = get_cpu();
 	p = this_cpu_ptr(&kp);
 	s = &shm[cpu];
-
+	// push_record(cpu,IPI_ENTRY,current->pid);
 	/* check if a signal has been requested */
 	tmp = smp_load_acquire(&s->sig);
 	if (tmp == p->last_gen) {
-		ksched_deliver_signal(p, READ_ONCE(s->signum));
+		ksched_deliver_signal(p, READ_ONCE(s->signum),cpu);
 		smp_store_release(&s->sig, 0);
 	}
 
@@ -455,6 +477,10 @@ static long ksched_intr(struct ksched_intr_req __user *ureq)
 #ifdef OS_SUPPORT_CUSTOMIZED_IPI_HANDER
         send_ipi(mask);
 #else
+	int cpu;
+	for_each_cpu(cpu, mask){
+	}
+	// push_record(0,SCHED_IPI,current->pid);
 	smp_call_function_many(mask, ksched_ipi, NULL, false);
 #endif
 	free_cpumask_var(mask);
@@ -556,12 +582,59 @@ static void __init ksched_init_pmc(void *arg)
 	       CORE_PERF_GLOBAL_CTRL_ENABLE_PMC_1 |
 	       (1UL << 32) | (1UL << 33) | (1UL << 34));
 }
+static int open_callback(struct inode * node, struct file * file){
+	
+	return 0;
+}
+static ssize_t read_callback (struct file * ff, char __user * c, size_t s, loff_t * l){
+	printk(KERN_INFO "read_callback\n");
+	int i,total,t,j;
+	for(i=0;i<64;i++){
+		printk(KERN_INFO "cpu %d, record %d\n", i, atomic_read(count[i]));
+	}
+	int type_count[10]={0};
+
+	for(i=0;i<64;i++){
+		t=atomic_read(count[i]);
+		
+		for(j=0;j<t;j++){
+			//printk(KERN_INFO "%d,%llu,%lld,%lld,%lld\n", i, start[i*4000000+(j<<2)], start[i*4000000+(j<<2)+1], start[i*4000000+(j<<2)+2], start[i*4000000+(j<<2)+3]);
+			type_count[start[i*4000000+(j<<2)+1]]++;
+		}
+	}
+	for(i=0;i<10;i++){
+		printk(KERN_INFO "type %d, count %d\n", i, type_count[i]);
+	}
+	return 0; 
+}
+static ssize_t write_callback (struct file * ff, const char __user * c, size_t s, loff_t * l){
+	int i;
+	for(i=0;i<64;i++){
+		atomic_set(count[i],0);
+	}
+	return s; 
+}
+
+static struct proc_dir_entry* proc_file=NULL;
+static const struct file_operations proc_fops = {
+ .owner = THIS_MODULE,
+ .read  = read_callback,
+ .open  = open_callback,
+ .write  = write_callback,
+};
 
 static int __init ksched_init(void)
 {
 	dev_t devno_ksched = MKDEV(KSCHED_MAJOR, KSCHED_MINOR);
-	int ret;
-
+	int ret,i;
+	for(i=0;i<64;i++){
+		count[i][0]=((atomic_t) { (0) });
+	}
+	start=(cycles_t*)kvmalloc(sizeof(cycles_t)*4000000*48, GFP_KERNEL);
+	if(!start){
+		printk(KERN_INFO "start alloc failed\n");
+		return -1;
+	}
 #ifdef OS_SUPPORT_CUSTOMIZED_IPI_HANDER
 	int apic_status;
 	rdmsrl(MSR_APIC_BASE, apic_status);
@@ -603,7 +676,11 @@ static int __init ksched_init(void)
 	set_customized_ipi_handler(ipi_handler);
 	prepare_ldrs();	
 #endif
-
+	proc_file = proc_create("ksched", 0666, NULL, &proc_fops);
+	if(!proc_file){
+		printk(KERN_INFO "ksched: proc file creation failed");
+		goto fail_hijack;
+	}
 	return 0;
 
 fail_hijack:
@@ -621,7 +698,8 @@ static void __exit ksched_exit(void)
 	struct ksched_percpu *p;
 
 	dev_t devno_ksched = MKDEV(KSCHED_MAJOR, KSCHED_MINOR);
-
+	proc_remove(proc_file);
+	kvfree(start);
 	ksched_cpuidle_unhijack();
 	vfree(shm);
 	cdev_del(&ksched_cdev);
