@@ -13,4 +13,4 @@ CONFIG_OPTIMIZE=n
 # Allow runtimes to access Mellanox ConnectX-5 NICs directly (kernel bypass)
 CONFIG_DIRECTPATH=n
 # Do some record on the link
-CONFIG_LINKSTATS=y
+CONFIG_LINKSTATS=n
