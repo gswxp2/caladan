@@ -215,7 +215,6 @@ int ioqueues_init(void)
 
 	iok.tx_len = INGRESS_MBUF_SHM_SIZE;
 	iok.tx_buf = netcfg.rx_region.base;
-	fprintf("iok.tx_buf = %p, iok.tx_len = %lu\n", iok.tx_buf, iok.tx_len);
 	return 0;
 }
 
