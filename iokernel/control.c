@@ -523,9 +523,9 @@ int control_init(void)
 	void *shbuf;
 
 	BUILD_ASSERT(strlen(CONTROL_SOCK_PATH) <= sizeof(addr.sun_path) - 1);
-	shbuf = mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x7fff00000000, INGRESS_MBUF_SHM_SIZE,
+	shbuf = mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x400000000000, INGRESS_MBUF_SHM_SIZE,
 			PGSIZE_2MB, false);
-	// void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE,
+	// void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x400020000000, INGRESS_MBUF_SHM_SIZE,
 	//  		PGSIZE_2MB, false);
 	// numa_tonode_memory((void*)shbuf, INGRESS_MBUF_SHM_SIZE, 0);
 	// numa_tonode_memory((void*)p, INGRESS_MBUF_SHM_SIZE, 0);

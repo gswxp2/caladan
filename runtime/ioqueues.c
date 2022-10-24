@@ -181,15 +181,13 @@ int ioqueues_init(void)
 	BUILD_ASSERT(sizeof(netcfg.mac) >= sizeof(mem_key_t));
 	iok.key = *(mem_key_t*)(&netcfg.mac);
 	iok.key = rand_crc32c(iok.key);
-
 	/* map ingress memory */
 	netcfg.rx_region.base =
-	    mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x7fff00000000, INGRESS_MBUF_SHM_SIZE,
+	    mem_map_shm(INGRESS_MBUF_SHM_KEY, (void*)0x400000000000, INGRESS_MBUF_SHM_SIZE,
 			PGSIZE_2MB,false);
-	void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x7fff20000000, INGRESS_MBUF_SHM_SIZE,
+	void *p=mem_map_shm(INGRESS_MBUF_SHM_KEY_CLIENT, (void*)0x400020000000, INGRESS_MBUF_SHM_SIZE,
 			PGSIZE_2MB,false);
-	
-	if (netcfg.rx_region.base == MAP_FAILED) {
+	if (netcfg.rx_region.base == MAP_FAILED||p==MAP_FAILED) {
 		log_err("control_setup: failed to map ingress region");
 		log_err("Please make sure IOKernel is running");
 		return -1;
@@ -217,7 +215,7 @@ int ioqueues_init(void)
 
 	iok.tx_len = INGRESS_MBUF_SHM_SIZE;
 	iok.tx_buf = netcfg.rx_region.base;
-	printf("iok.tx_buf = %p, iok.tx_len = %lu\n", iok.tx_buf, iok.tx_len);
+	fprintf("iok.tx_buf = %p, iok.tx_len = %lu\n", iok.tx_buf, iok.tx_len);
 	return 0;
 }
 

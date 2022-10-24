@@ -169,7 +169,7 @@ static void *__mem_map_shm(mem_key_t key, void *base, size_t len,
 		  size_t pgsize, bool exclusive, bool rdonly)
 {
 	void *addr;
-	int shmid, flags = rdonly ? 0 : (IPC_CREAT | 0744);
+	int shmid, flags = rdonly ? 0 : (IPC_CREAT | 0777);
 
 	BUILD_ASSERT(sizeof(mem_key_t) == sizeof(key_t));
 

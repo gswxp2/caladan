@@ -167,7 +167,7 @@ void reset_record(int sig)
 int main(int argc, char *argv[])
 {
 	int i, ret;
-	signal(SIGUSR1, dump_record);
+	signal(SIGALRM, dump_record);
 	// signal(SIGUSR2, reset_record);
 	if (argc >= 2) {
 		if (!strcmp(argv[1], "simple")) {

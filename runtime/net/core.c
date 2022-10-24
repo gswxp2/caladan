@@ -666,7 +666,7 @@ void tcp_dump(int signo){
  */
 int net_init(void)
 {
-	signal(SIGUSR2, tcp_dump);
+	signal(SIGALRM, tcp_dump);
 
 	// ret = mempool_create(&net_tx_buf_mp, iok.tx_buf, iok.tx_len,
 	// 		     PGSIZE_2MB, MBUF_DEFAULT_LEN);

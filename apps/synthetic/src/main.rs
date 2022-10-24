@@ -1128,7 +1128,6 @@ fn main() {
     let loadshift_spec = value_t_or_exit!(matches, "loadshift", String);
     let fwspec = value_t_or_exit!(matches, "fakework", String);
     let fakeworker = Arc::new(FakeWorker::create(&fwspec).unwrap());
-
     if matches.is_present("calibrate") {
         let us = value_t_or_exit!(matches, "calibrate", u64);
         backend.init_and_run(config, move || {
